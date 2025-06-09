@@ -570,6 +570,21 @@
 			break;
 		}
 	}
+	
+	function StripWeaponDestroy(player, slot = -1)
+	{
+		if (slot == -1) slot = player.GetActiveWeapon().GetSlot()
+
+		for (local i = 0; i < SLOT_COUNT; i++)
+		{
+			local weapon = this.GetItemInSlot(player, i);
+
+			if (weapon == null || weapon.GetSlot() != slot) continue;
+
+			weapon.Destroy();
+			break;
+		}
+	}
 
 	function SetPlayerAttributes(player, attrib, value, item = null, customwep_force = false)
 	{
@@ -723,6 +738,108 @@
 			if (n.len() > 0) {
 				strarray.append(n)
 				if (!startswith(n, "PAUSE") && !syncChatWithGameText)
+					ClientPrint(null, 3, format("\x07%s %s\x07%s %s", printColor, messagePrefix, TF_COLOR_DEFAULT, n))
+			}
+
+		local i = -1
+		local textcooldown = 0
+		function ExplanationTextThink() {
+			if (textcooldown > Time()) return
+
+			i++
+			if (i == strarray.len()) {
+				SetPropString(txtent, "m_iszScriptThinkFunction", "")
+
+			//	  DoEntFire("!activator", "SetScriptOverlayMaterial", "", -1, player, player)
+
+				// foreach (player in HumanArray) DoEntFire("command", "Command", "r_screenoverlay vgui/pauling_text", -1, player, player)
+
+				SetPropString(txtent, "m_iszMessage", "")
+				EntFireByHandle(txtent, "Display", "", -1, null, null)
+				EntFireByHandle(txtent, "Kill", "", 0.1, null, null)
+				return
+			}
+			local s = strarray[i]
+
+			//make text display slightly longer depending on string length
+			local delaybetweendisplays = textPrintTime
+			if (delaybetweendisplays == -1) {
+				delaybetweendisplays = s.len() / 10
+				if (delaybetweendisplays < 2) delaybetweendisplays = 2; else if (delaybetweendisplays > 12) delaybetweendisplays = 12
+			}
+
+			//allow for pauses in the announcement
+			if (startswith(s, "PAUSE")) {
+				local pause = split(s, " ")[1].tofloat()
+			//	  DoEntFire("player", "SetScriptOverlayMaterial", "", -1, player, player)
+				SetPropString(txtent, "m_iszMessage", "")
+
+				SetPropInt(txtent, "m_textParms.holdTime", pause)
+				txtent.KeyValueFromInt("holdtime", pause)
+
+				EntFireByHandle(txtent, "Display", "", -1, null, null)
+
+				textcooldown = Time() + pause
+				return 0.033
+			}
+
+			//shits fucked
+			function calculate_x(str) {
+				local len = str.len()
+				local t = 1 - (len.tofloat() / 48)
+				local x = 1 * (1 - t)
+				x = (1 - (x / 3)) / 2.1
+				// if (x > 0.5) x = 0.5 else if (x < 0.28) x = 0.28
+				return x
+			}
+
+			SetPropFloat(txtent, "m_textParms.x", calculate_x(s))
+			txtent.KeyValueFromFloat("x", calculate_x(s))
+
+			SetPropString(txtent, "m_iszMessage", s)
+
+			SetPropInt(txtent, "m_textParms.holdTime", delaybetweendisplays)
+			txtent.KeyValueFromInt("holdtime", delaybetweendisplays)
+
+			EntFireByHandle(txtent, "Display", "", -1, null, null)
+			if (syncChatWithGameText) ClientPrint(null, 3, format("\x07%s %s\x07%s %s", COLOR_YELLOW, messagePrefix, TF_COLOR_DEFAULT, s))
+
+			textcooldown = Time() + delaybetweendisplays
+
+			return 0.033
+	   }
+	   txtent.ValidateScriptScope()
+	   txtent.GetScriptScope().ExplanationTextThink <- ExplanationTextThink
+	   AddThinkToEnt(txtent, "ExplanationTextThink")
+	}
+	
+	function DoExplanationFixed(message, printColor = COLOR_YELLOW, messagePrefix = "Explanation: ", syncChatWithGameText = false, textPrintTime = -1, textScanTime = 0.02)
+	{
+		local rgb = HexToRgb(printColor)
+		local txtent = SpawnEntityFromTable("game_text", {
+			effect = 2,
+			spawnflags = SF_ENVTEXT_ALLPLAYERS,
+			color = format("%d %d %d", rgb[0], rgb[1], rgb[2]),
+			color2 = "255 254 255",
+			fxtime = textScanTime,
+			// holdtime = 5,
+			fadeout = 0.01,
+			fadein = 0.01,
+			channel = 3,
+			x = 0.3,
+			y = 0.3
+		})
+		SetPropBool(txtent, STRING_NETPROP_PURGESTRINGS, true)
+		SetTargetname(txtent, format("__utilExplanationText%d",txtent.entindex()))
+		local strarray = []
+
+		//avoid needing to do a ton of function calls for multiple announcements.
+		local newlines = split(message, "|")
+
+		foreach (n in newlines)
+			if (n.len() > 0) {
+				strarray.append(n)
+				if (!startswith(n, "PAUSE") && syncChatWithGameText)
 					ClientPrint(null, 3, format("\x07%s %s\x07%s %s", printColor, messagePrefix, TF_COLOR_DEFAULT, n))
 			}
 
@@ -2285,6 +2402,10 @@
 //shorter syntax in popfiles (Info(message) vs PopExtUtil.Info(message))
 function Explanation(message, printColor = COLOR_YELLOW, messagePrefix = "Explanation: ", syncChatWithGameText = false, textPrintTime = -1, textScanTime = 0.02) {
 	PopExtUtil.DoExplanation(message, printColor, messagePrefix, syncChatWithGameText, textPrintTime, textScanTime)
+}
+
+function ExplanationFixed(message, printColor = COLOR_YELLOW, messagePrefix = "Explanation: ", syncChatWithGameText = false, textPrintTime = -1, textScanTime = 0.02) {
+	PopExtUtil.DoExplanationFixed(message, printColor, messagePrefix, syncChatWithGameText, textPrintTime, textScanTime)
 }
 
 function Info(message, printColor = COLOR_YELLOW, messagePrefix = "Explanation: ", syncChatWithGameText = false, textPrintTime = -1, textScanTime = 0.02) {

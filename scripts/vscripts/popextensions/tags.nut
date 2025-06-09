@@ -1,6 +1,43 @@
 //behavior tags
 PopExtUtil.PlayerManager.ValidateScriptScope()
 
+local VoicelineSoundLevel = 80
+local EngiVoicelines =
+[
+	"vo/mvm/norm/engineer_mvm_battlecry03.mp3", // 0 - 5 battle cries
+	"vo/mvm/norm/engineer_mvm_battlecry05.mp3",
+	"vo/mvm/norm/engineer_mvm_battlecry06.mp3",
+	"vo/mvm/norm/engineer_mvm_battlecry07.mp3",
+	"vo/mvm/norm/engineer_mvm_cheers01.mp3",
+	"vo/mvm/norm/engineer_mvm_cheers02.mp3",
+	"vo/mvm/norm/engineer_mvm_painsharp01.mp3", // 6 - 13 take damage
+	"vo/mvm/norm/engineer_mvm_painsharp02.mp3",
+	"vo/mvm/norm/engineer_mvm_painsharp03.mp3",
+	"vo/mvm/norm/engineer_mvm_painsharp04.mp3",
+	"vo/mvm/norm/engineer_mvm_painsharp05.mp3",
+	"vo/mvm/norm/engineer_mvm_painsharp06.mp3",
+	"vo/mvm/norm/engineer_mvm_painsharp07.mp3",
+	"vo/mvm/norm/engineer_mvm_painsharp08.mp3",
+	"vo/mvm/norm/engineer_mvm_painsevere01.mp3", // 14 - 20 take damage severe
+	"vo/mvm/norm/engineer_mvm_painsevere02.mp3",
+	"vo/mvm/norm/engineer_mvm_painsevere03.mp3",
+	"vo/mvm/norm/engineer_mvm_painsevere04.mp3",
+	"vo/mvm/norm/engineer_mvm_painsevere05.mp3",
+	"vo/mvm/norm/engineer_mvm_painsevere06.mp3",
+	"vo/mvm/norm/engineer_mvm_painsevere07.mp3",
+	"vo/mvm/norm/engineer_mvm_paincriticaldeath01.mp3", // 21 - 26 death
+	"vo/mvm/norm/engineer_mvm_paincriticaldeath02.mp3",
+	"vo/mvm/norm/engineer_mvm_paincriticaldeath03.mp3",
+	"vo/mvm/norm/engineer_mvm_paincriticaldeath04.mp3",
+	"vo/mvm/norm/engineer_mvm_paincriticaldeath05.mp3",
+	"vo/mvm/norm/engineer_mvm_paincriticaldeath06.mp3"
+]
+
+foreach (voiceline in EngiVoicelines)
+{
+	PrecacheSound(voiceline)
+}
+
 local popext_funcs = {
 
     /**************************************************************************************************************************
@@ -48,7 +85,7 @@ local popext_funcs = {
     /*********************************************************************************
      * PRESS SECONDARY FIRE                                                          *
      *                                                                               *
-     * Example: popext_altfire{ duration = 30 } //hold for 30 seconds after spawning *
+     * Example: popext_altfire{ duration = 30 delay = 3 seendelay = 3} //hold for 30 seconds after spawning *
      *                                                                               *
      * Arguments are optional                                                        *
      *                                                                               *
@@ -56,8 +93,131 @@ local popext_funcs = {
      *********************************************************************************/
 
 	popext_altfire = function(bot, args) {
+	
+		local delay = args.delay.tointeger() // must be at least 1
+		local delaytime = Time() + delay
+		local seendelay = "seendelay" in args ? args.seendelay : 0
+		local seendelaytime = 0
+		local seentarget = false
+		bot.GetScriptScope().PlayerThinkTable.SecondaryFireThink <- function()
+		{
 
-		bot.PressAltFireButton(args.duration.tointeger())
+			if (Time() < delaytime) return
+			
+			if (seentarget)
+			{
+				if (Time() > seendelaytime) {
+					bot.PressAltFireButton(args.duration.tointeger())
+					seentarget = false
+				}
+				return
+			}
+			if (!bot.InCond(51) && !seentarget)
+			{
+				foreach (player in PopExtUtil.HumanArray)
+				{
+					if (aibot.IsThreatVisible(player))
+					{
+						seentarget = true
+						seendelaytime = Time() + seendelay
+					}
+				}
+
+				//delete bot.GetScriptScope().PlayerThinkTable.SecondaryFireThink
+			}
+		}
+	}
+	
+	/*********************************************************************************
+     * TAUNT PERIODIC                                                                *
+     *                                                                               *
+     * Example: popext_tauntperiodic{ duration = 30 delay = 3 cooldown = 3} //hold for 30 seconds after spawning *
+     *********************************************************************************/
+	 
+	popext_tauntperiodic = function(bot, args) {
+	
+		local delay = args.delay.tointeger() // must be at least 1
+		
+		local seendelay = "seendelay" in args ? args.seendelay : 0
+		local cooldown = "cooldown" in args ? args.cooldown : 1
+		
+		bot.GetScriptScope().delaytime <- 0
+		bot.GetScriptScope().cooldowntime <- 0
+		
+		bot.GetScriptScope().PlayerThinkTable.TauntPeriodicThink <- function()
+		{
+			if (bot.InCond(51))
+			{
+				delaytime <- Time() + delay
+			}
+			
+			if (Time() < delaytime || Time() < cooldowntime) return
+			
+			cooldowntime <- Time() + cooldown
+			printl("pressing altfire!")
+			printl(Time())
+			printl(cooldowntime)
+			printl(delaytime)
+			bot.HandleTauntCommand(0)
+		}
+	}
+	
+	/*********************************************************************************
+     * PRESS SPECIAL FIRE                                                          *
+     *                                                                               *
+     * Example: popext_specialfire{ duration = 30 delay = 3} //hold for 30 seconds after spawning *
+     *                                                                               *
+     * Arguments are optional                                                        *
+     *                                                                               *
+     * Example: popext_specialfire                                                       *
+     *********************************************************************************/
+
+	popext_specialfire = function(bot, args) {
+	
+		local delay = args.delay.tointeger() // must be at least 1
+		local delaytime = Time() + delay
+
+		bot.GetScriptScope().PlayerThinkTable.SpecialFireThink <- function()
+		{
+			if (Time() < delaytime) return
+			//if (!bot.InCond(51))
+			//{
+				//foreach (player in PopExtUtil.HumanArray)
+				//{
+				//	if (aibot.IsThreatVisible(player))
+				//	{
+						bot.PressSpecialFireButton(args.duration.tointeger())
+				//	}
+				//}
+				
+				//delete bot.GetScriptScope().PlayerThinkTable.SpecialFireThink
+			//}
+		}
+		
+	}
+	
+	/*******************************************************************************************************
+     * SPAWN SOUND                                                                                         *
+     *                                                                                                     *
+     * See the EmitSoundEx page for valid arguments                                                        *
+     * https://developer.valvesoftware.com/wiki/Team_Fortress_2/Scripting/Script_Functions/EmitSoundEx     *
+     *                                                                                                     *
+     * Example: popext_spawnsound{sound = `ui/chime_rd_2base_neg.wav`}                                     *
+     *******************************************************************************************************/
+
+	popext_spawnsound = function(bot, args) {
+	
+		local sound = "sound" in args ? args.sound : args.type
+		NetProps.SetPropBool(sound, "m_bForcePurgeFixedupStrings", true)
+		EmitSoundEx({
+
+				sound_name = sound
+				channel = CHAN_AUTO
+				volume = 1.0
+				sound_level = 0
+				filter_type = RECIPIENT_FILTER_GLOBAL
+				flags = SND_CHANGE_VOL
+			})
 	}
 
     /*******************************************************************************************************
@@ -112,6 +272,50 @@ local popext_funcs = {
 			})
 
 			// EmitSoundEx({sound_name = "sound" in args ? args.sound : args.type, entity = victim})
+		}
+	}
+	
+	/*******************************************************************************************************
+     * MIMIC ENGI SOUNDS                                                                                   *
+     *                                                                                                     *
+     * See the EmitSoundEx page for valid arguments                                                        *
+     * https://developer.valvesoftware.com/wiki/Team_Fortress_2/Scripting/Script_Functions/EmitSoundEx     *
+     *                                                                                                     *
+     * Example: popext_mimicegnisounds                                                                     *
+     *******************************************************************************************************/
+
+	popext_mimicengisounds = function(bot, args) {
+	
+		local selfbotref = bot
+		NetProps.SetPropBool(bot, "m_bForcePurgeFixedupStrings", true)
+		// Battle cries
+		local donesound = false
+		NetProps.SetPropBool(donesound, "m_bForcePurgeFixedupStrings", true)
+		local delaytime = null
+		NetProps.SetPropBool(delaytime, "m_bForcePurgeFixedupStrings", true)
+		bot.GetScriptScope().delaytimehurt <- 0.0
+	
+		bot.GetScriptScope().PlayerThinkTable.MimicEngiSoundsThink <- function()
+		{
+			if (donesound || bot.InCond(51)) return
+			
+			if (delaytime == null)
+			{
+				delaytime = Time() + RandomFloat(0.0, 4.0)
+				return
+			}
+			
+			if (Time() < delaytime) return
+			
+			local randomNoise = RandomInt(0, 5)
+			NetProps.SetPropBool(randomNoise, "m_bForcePurgeFixedupStrings", true)
+			EmitSoundEx({
+				sound_name = EngiVoicelines[randomNoise]
+				entity = bot
+				filter_type = RECIPIENT_FILTER_GLOBAL
+				sound_level = VoicelineSoundLevel
+			})
+			donesound = true
 		}
 	}
 
@@ -252,6 +456,66 @@ local popext_funcs = {
 			}
 		}
 	}
+	
+	/*********************************************************************
+     * MAKE TRANSPARENT                                                  *
+     *                                                                   *
+     * Example: popext_transparency{value = 50 affectchildren = true} *
+     *********************************************************************/
+
+	popext_transparency = function(bot, args) {
+		local value = "value" in args ? args.value : 0
+		local affectchildren = "affectchildren" in args ? args.affectchildren : true
+		
+		EntFireByHandle(bot, "addoutput", "rendermode 1", 0, null, null)
+		EntFireByHandle(bot, "alpha", value.tostring(), 0, null, null)
+		
+		if (affectchildren)
+		{
+			for (local child = bot.FirstMoveChild(); child != null; child = child.NextMovePeer()) {
+				EntFireByHandle(child, "addoutput", "rendermode 1", 0, null, null)
+				EntFireByHandle(child, "alpha", value.tostring(), 0, null, null)
+			}
+		}
+	}
+	
+	/*********************************************************************
+     * PERIODIC TRANSPARENT                                              *
+     *                                                                   *
+     * Example: popext_periodic_transparency{max = 255 min = 0 period = 2 affectchildren = true} *
+     *********************************************************************/
+
+	popext_periodic_transparency = function(bot, args) {
+		local max = "max" in args ? args.max : 255
+		local min = "min" in args ? args.min : 0
+		local period = "period" in args ? args.period : 2
+		local affectchildren = "affectchildren" in args ? args.affectchildren : true
+		
+		bot.GetScriptScope().sin_mult <- (max - min) / 2
+		bot.GetScriptScope().sin_add <- (max + min) / 2
+		bot.GetScriptScope().sin_time <- (2 * PI) / period
+		
+		EntFireByHandle(bot, "addoutput", "rendermode 1", 0, null, null)
+		if (affectchildren)
+		{
+			for (local child = bot.FirstMoveChild(); child != null; child = child.NextMovePeer()) {
+				EntFireByHandle(child, "addoutput", "rendermode 1", 0, null, null)
+			}
+		}
+		
+		bot.GetScriptScope().PlayerThinkTable.PeriodicTransparency <- function() {
+			
+			local transparency_value = sin_mult * cos(sin_time * Time()) + sin_add
+			EntFireByHandle(bot, "alpha", transparency_value.tostring(), 0, null, null)
+		
+			if (affectchildren)
+			{
+				for (local child = bot.FirstMoveChild(); child != null; child = child.NextMovePeer()) {
+					EntFireByHandle(child, "alpha", transparency_value.tostring(), 0, null, null)
+				}
+			}
+		}	
+	}
 
     /**********************************************************
      * ALWAYS GLOW	                                          *
@@ -363,6 +627,49 @@ local popext_funcs = {
 			cooldowntime = Time() + cooldown
 		}
 	}
+	
+	/***************************************************************************************************************************
+     * WEAPON SWITCHING PERIODIC                                                                                               *
+     * 				                                                                                                           *
+     *                                                                                                                         *
+     * All keyvalues besides "slot" are optional, default values can be found in this file by searching for "local tagtable =" *
+     * Example: popext_weaponswitch{ slotseq = `1 2` cooldown = 3 delay =  duration = 3} 	                                               *
+     *                                                                                                                         *
+     ***************************************************************************************************************************/
+
+	popext_weaponswitchperiodic = function(bot, args) {
+		
+		local slotseq = split(args.slotseq.tostring(), " ")
+		local cooldown = args.cooldown.tointeger()
+		local delay = args.delay.tointeger()
+		//local duration = args.duration.tointeger()
+		
+		local looplength = slotseq.len()
+		local switchstate = 0
+		
+		local cooldowntime = Time() + cooldown
+		local delaytime = Time() + delay
+		
+		bot.GetScriptScope().PlayerThinkTable.WeaponSwitchPeriodicThink <- function()
+		{
+
+			if (Time() < delaytime || (Time() < cooldowntime)) return
+
+			//printl("current slot: " + slotseq[switchstate])
+			
+			bot.RemoveCustomAttribute("disable weapon switch")
+			bot.Weapon_Switch(PopExtUtil.GetItemInSlot(bot, slotseq[switchstate].tointeger()))
+			bot.AddCustomAttribute("disable weapon switch", 1, cooldown)
+			
+			//EntFireByHandle(bot, "RunScriptCode","self.RemoveCustomAttribute(`disable weapon switch`)", cooldown, null, null)
+			//EntFireByHandle(bot, "RunScriptCode", format("self.Weapon_Switch(PopExtUtil.GetItemInSlot(self, %d))", slotseq[switchstate].tointeger()), cooldown+SINGLE_TICK, null, null)
+
+			switchstate += 1
+			if (switchstate == looplength) {switchstate = 0}
+			
+			cooldowntime = Time() + cooldown
+		}
+	}
 
     /***************************************************************************************************************************
      * SPELL CASTING                                                                                                           *
@@ -404,6 +711,7 @@ local popext_funcs = {
 			//try again next think
 			return
 		}
+		
 
 		local cooldowntime = Time() + cooldown
 		local delaytime = Time() + delay
@@ -415,6 +723,31 @@ local popext_funcs = {
 			if ((maxrepeats) >= repeats)
 			{
 				delete bot.GetScriptScope().PlayerThinkTable.SpellThink
+				return
+			}
+			
+			// Detect players in FOV?
+			if (ifseetarget)
+			{
+				local seeplayer = false
+				foreach (player in PopExtUtil.HumanArray)
+				{
+					if (aibot.IsThreatVisible(player))
+					{
+						// printl("ISEE PLAYER!!")
+						seeplayer = true
+						break
+					}
+				}
+				if (!seeplayer)
+				{
+					return
+				}
+			}
+			
+			// Still in spawnroom?
+			if (bot.InCond(51))
+			{
 				return
 			}
 
@@ -1432,6 +1765,19 @@ local popext_funcs = {
 			delete PlayerThinkTable.SpawnHereCollisionFix
 		}
 	}
+	
+	/************************************************************************************
+     * DONT SPAWN WITH BOMB                                                             *
+     *                                                                                  *
+     * inteded to be used with spawnhere                                                *
+     *                                                                                  *
+     * just need tag presence                                                           *
+     ************************************************************************************/
+
+	popext_dontspawnwithbomb = function(bot, args) {
+		EntFireByHandle(bot, "RunScriptCode", "self.AddBotAttribute(IGNORE_FLAG)", 0.0, null, null)
+		EntFireByHandle(bot, "RunScriptCode", "self.RemoveBotAttribute(IGNORE_FLAG)", 2.0, null, null)
+	}
 
     /******************************************************************************************************************
      * IMPROVED AIRBLAST                                                                                              *
@@ -1842,6 +2188,26 @@ local popext_funcs = {
 			}
 		}
 	}
+	
+	/**********************************************************
+     * LEAVE SQUAD                                            *
+     *                                                        *
+     * No parameters required, only tag presence is necessary *
+     **********************************************************/
+
+	popext_leave_squad = function(bot, args) {
+		bot.LeaveSquad()
+	}
+	
+	/**********************************************************
+     * DISBAND SQUAD                                          *
+     *                                                        *
+     * No parameters required, only tag presence is necessary *
+     **********************************************************/
+
+	popext_disband_squad = function(bot, args) {
+		bot.DisbandCurrentSquad()
+	}
 
 	/**********************************************************
 	 * DISBAND SQUAD AFTER									  *
@@ -2150,7 +2516,10 @@ local popext_funcs = {
 
 	function SelectVictim(projectile) {
 		local target
+		local target_b
+		local final_target
 		local min_distance = 32768.0
+		local min_distance_b = 32768.0
 		foreach (player in PopExtUtil.HumanArray) {
 
 			local distance = (projectile.GetOrigin() - player.GetOrigin()).Length()
@@ -2160,7 +2529,24 @@ local popext_funcs = {
 				min_distance = distance
 			}
 		}
-		return target
+		for (local building; building = Entities.FindByClassname(building, "obj_*");)
+		{
+			local distance_b = (projectile.GetOrigin() - building.GetOrigin()).Length()
+
+			if (IsValidTarget_b(building, distance_b, min_distance_b, projectile)) {
+				target_b = building
+				min_distance_b = distance_b
+			}
+		}
+		if (min_distance < min_distance_b)
+		{
+			final_target = target
+		}
+		else
+		{
+			final_target = target_b
+		}
+		return final_target
 	}
 
 	function IsValidTarget(victim, distance, min_distance, projectile) {
@@ -2184,6 +2570,17 @@ local popext_funcs = {
 			if (!projectile_scope.ignoreDisguisedSpies && victim.GetDisguiseTarget() != null) {
 				return false
 			}
+		}
+
+		return true
+	}
+	
+	function IsValidTarget_b(victim_b, distance_b, min_distance_b, projectile) {
+
+		local projectile_scope = projectile.GetScriptScope()
+		// Early out if basic conditions aren't met
+		if (distance_b > min_distance_b || victim_b.GetTeam() == projectile.GetTeam() || !PopExtUtil.IsAlive(victim_b)) {
+			return false
 		}
 
 		return true
@@ -2401,6 +2798,48 @@ local popext_funcs = {
 
 		if ("TakeDamageTable" in scope)
 			foreach (func in scope.TakeDamageTable) { func(params) }
+			
+		NetProps.SetPropBool(bot, "m_bForcePurgeFixedupStrings", true)
+		if (bot == null) return
+		if (!bot.IsAlive()) return
+
+		local scope = bot.GetScriptScope()
+		NetProps.SetPropBool(scope, "m_bForcePurgeFixedupStrings", true)
+		
+		// Engibot sound replication
+		
+		local bottags = {}
+		NetProps.SetPropBool(bottags, "m_bForcePurgeFixedupStrings", true)
+		bot.GetAllBotTags(bottags)
+		
+		foreach(i, tag in bottags) {
+			if (tag == "popext_mimicengisounds")
+			{
+				if (Time() < scope.delaytimehurt) return
+
+				scope.delaytimehurt <- Time() + 2.0
+				//printl(params.attacker.GetTeam())
+				//printl(bot.GetTeam())
+				if (bot.InCond(5) || bot.InCond(51) || params.attacker.GetTeam() == bot.GetTeam()) return
+				
+				local randomNoiseHurt = 0
+				NetProps.SetPropBool(randomNoiseHurt, "m_bForcePurgeFixedupStrings", true)
+				if (params.damage < 45)
+				{
+					randomNoiseHurt = RandomInt(6, 13)
+				}
+				else
+				{
+					randomNoiseHurt = RandomInt(14, 20)
+				}
+				EmitSoundEx({
+					sound_name = EngiVoicelines[randomNoiseHurt]
+					entity = bot
+					filter_type = RECIPIENT_FILTER_GLOBAL
+					sound_level = VoicelineSoundLevel
+				})
+			}
+		}
 	}
 
 	function OnGameEvent_player_team(params) {
@@ -2426,9 +2865,34 @@ local popext_funcs = {
 	function OnGameEvent_player_death(params) {
 
 		local bot = GetPlayerFromUserID(params.userid)
+		NetProps.SetPropBool(bot, "m_bForcePurgeFixedupStrings", true)
 		if (!bot.IsBotOfType(TF_BOT_TYPE)) return
 
 		local scope = bot.GetScriptScope()
+		
+		NetProps.SetPropBool(scope, "m_bForcePurgeFixedupStrings", true)
+		
+		// Engibot sound replication
+		
+		local bottags = {}
+		NetProps.SetPropBool(bottags, "m_bForcePurgeFixedupStrings", true)
+		bot.GetAllBotTags(bottags)
+		
+		foreach(i, tag in bottags) {
+			if (tag == "popext_mimicengisounds")
+			{
+				// printl("playing noise")
+				local randomNoise = RandomInt(21, 26)
+				NetProps.SetPropBool(randomNoise, "m_bForcePurgeFixedupStrings", true)
+				EmitSoundEx({
+					sound_name = EngiVoicelines[randomNoise]
+					entity = bot
+					filter_type = RECIPIENT_FILTER_GLOBAL
+					sound_level = VoicelineSoundLevel
+				})
+			}
+		}
+		
 		bot.ClearAllBotTags()
 		foreach (func in scope.DeathHookTable) func(params)
 
