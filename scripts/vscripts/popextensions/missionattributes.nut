@@ -2934,9 +2934,9 @@ if (!("ScriptUnloadTable" in ROOT)) ::ScriptUnloadTable <- {}
 
 	function SetConvar(convar, value, duration = 0, hideChatMessage = true) {
 
-		local commentaryNode
-		if (hideChatMessage)
-			commentaryNode = SpawnEntityFromTable("point_commentary_node", {targetname = "  IGNORE THIS ERROR \r"})
+		// local commentaryNode
+		// if (hideChatMessage)
+		//	commentaryNode = SpawnEntityFromTable("point_commentary_node", {targetname = "  IGNORE THIS ERROR \r"})
 
 		//save original values to restore later
 		if (!(convar in MissionAttributes.ConVars)) MissionAttributes.ConVars[convar] <- Convars.GetStr(convar);
@@ -2947,19 +2947,19 @@ if (!("ScriptUnloadTable" in ROOT)) ::ScriptUnloadTable <- {}
 		if (duration > 0)
 			EntFire("bignet", "RunScriptCode", format("MissionAttributes.SetConvar(`%s`,`%s`)", convar, MissionAttributes.ConVars[convar].tostring()), duration)
 
-		if (commentaryNode != null)
-			EntFireByHandle(commentaryNode, "Kill", "", 1, null, null)
+		// if (commentaryNode != null)
+		//	EntFireByHandle(commentaryNode, "Kill", "", 1, null, null)
 	}
 
 	function ResetConvars(hideChatMessage = true)
 	{
-		local commentaryNode = FindByClassname(null, "point_commentary_node")
-		if (commentaryNode == null && hideChatMessage) commentaryNode = SpawnEntityFromTable("point_commentary_node", {targetname = "  IGNORE THIS ERROR \r"})
+		// local commentaryNode = FindByClassname(null, "point_commentary_node")
+		// if (commentaryNode == null && hideChatMessage) commentaryNode = SpawnEntityFromTable("point_commentary_node", {targetname = "  IGNORE THIS ERROR \r"})
 
 		foreach (convar, value in MissionAttributes.ConVars) Convars.SetValue(convar, value)
 		MissionAttributes.ConVars.clear()
 
-		if (commentaryNode != null) EntFireByHandle(commentaryNode, "Kill", "", -1, null, null)
+		// if (commentaryNode != null) EntFireByHandle(commentaryNode, "Kill", "", -1, null, null)
 	}
 
 	function MissionAttr(...) {
