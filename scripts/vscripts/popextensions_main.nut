@@ -1,4 +1,4 @@
-::popExtensionsVersion <- "05.09.2025.2"
+::popExtensionsVersion <- "06.12.2025.1"
 
 local ROOT = getroottable()
 
@@ -79,13 +79,16 @@ catch ( e )
 	ManualCleanup = false
 
 
-	//ignore these variables when cleaning up
+	// ignore these variables when cleaning up
+	// "Preserved" is a special table that will persist through the cleanup process
+	// any player scoped variables you want to use across multiple waves should be added here
 	IgnoreTable = {
-		"self"         : null
-		"__vname"      : null
-		"__vrefs"      : null
-		"Preserved"    : null
-		"ExtraLoadout" : null
+		"self"         			: null
+		"__vname"      			: null
+		"__vrefs"      			: null
+		"Preserved"    			: null
+		"ExtraLoadout" 			: null
+		"PointTemplatesToKill" 	: null
 		"popWearablesToDestroy" : null
 	}
 
@@ -97,7 +100,7 @@ catch ( e )
 		player.ValidateScriptScope()
 		local scope = player.GetScriptScope()
 
-		if (scope.len() <= 5) return
+		if (scope.len() <= IgnoreTable.len()) return
 
 		foreach (k, v in scope)
 			if (!(k in IgnoreTable))
@@ -157,6 +160,20 @@ catch ( e )
 		}
 	}
 	Events = {
+
+		function OnGameEvent_player_spawn(params) {
+
+			local player = GetPlayerFromUserID(params.userid)
+			local scope = player.GetScriptScope()
+			if (!scope)
+			{
+				player.ValidateScriptScope()
+				scope = player.GetScriptScope()
+			}
+			if (!("Preserved" in scope))
+				scope.Preserved <- {}
+		}
+
 		function OnGameEvent_post_inventory_application(params) {
 
 			if (GetRoundState() == GR_STATE_PREROUND) return
@@ -167,13 +184,11 @@ catch ( e )
 
 			PopExtMain.PlayerCleanup(player)
 
-			player.ValidateScriptScope()
 			local scope = player.GetScriptScope()
 
 			scope.userid <- params.userid
 
 			if (!("PlayerThinkTable" in scope)) scope.PlayerThinkTable <- {}
-			if (!("Preserved" in scope)) scope.Preserved <- {}
 
 			if (player.IsBotOfType(TF_BOT_TYPE))
 			{
@@ -181,7 +196,7 @@ catch ( e )
 				scope.DeathHookTable  <- {}
 				scope.TakeDamageTable <- {}
 
-				scope.aibot <- AI_Bot(player)
+				scope.aibot <- PopExtBotBehavior(player)
 				scope.PlayerThinkTable.BotThink <- function() {
 						aibot.OnUpdate()
 				}
@@ -248,21 +263,17 @@ catch ( e )
 
 			//nuke it all
 			local cleanup = [
+
 				"MissionAttributes"
 				"CustomAttributes"
-				"PopExt"
-				"PopExtTags"
-				"PopExtHooks"
 				"GlobalFixes"
 				"SpawnTemplate"
 				"SpawnTemplateWaveSchedule"
 				"SpawnTemplates"
 				"VCD_SOUNDSCRIPT_MAP"
-				"PopExtUtil"
 				"PointTemplates"
 				"CustomWeapons"
 				"__popname"
-				"AI_Bot"
 				"ExtraItems"
 				"Homing"
 				"Include"
@@ -271,16 +282,22 @@ catch ( e )
 				"MissionAttr"
 				"MissionAttrs"
 				"MissionAttrThink"
-				"PathPoint"
-				"popExtensionsVersion"
-				"popExtEntity"
+
+				"PopExt"
+				"PopExtTags"
+				"PopExtHooks"
+				"PopExtUtil"
+				"PopExtPathPoint"
+				"PopExtBotBehavior"
+				"PopExtWeapons"
+				"PopExtAttributes"
 				"PopExtItems"
 				"PopExtMain"
-				"popExtThinkFuncSet"
+				"PopExtGlobalThink"
 				"PopExtTutorial"
-				"PopulatorThink"
-				"RespawnEndTouch"
-				"RespawnStartTouch"
+				"popExtThinkFuncSet"
+				"popExtensionsVersion"
+
 				"ScriptLoadTable"
 				"ScriptUnloadTable"
 				"EntAdditions"
